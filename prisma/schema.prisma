@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model ScrapedSite {
+  id               String         @id @default(cuid())
+  url              String
+  htmlSnapshot     String?        @db.Text
+  extractionStatus String         @default("pending")
+  sessionId        String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  tokens           DesignToken?
+  lockedTokens     LockedToken[]
+  versionHistory   VersionHistory[]
+
+  @@index([sessionId])
+}
+
+model DesignToken {
+  id         String      @id @default(cuid())
+  siteId     String      @unique
+  site       ScrapedSite @relation(fields: [siteId], references: [id])
+  colors     Json
+  typography Json
+  spacing    Json
+  shadows    Json
+  radii      Json
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model LockedToken {
+  id          String      @id @default(cuid())
+  siteId      String
+  site        ScrapedSite @relation(fields: [siteId], references: [id])
+  tokenKey    String
+  lockedValue String
+  sessionId   String
+  lockedAt    DateTime    @default(now())
+
+  @@unique([siteId, tokenKey, sessionId])
+}
+
+model VersionHistory {
+  id          String      @id @default(cuid())
+  siteId      String
+  site        ScrapedSite @relation(fields: [siteId], references: [id])
+  tokenKey    String
+  valueBefore String
+  valueAfter  String
+  changedAt   DateTime    @default(now())
+  sessionId   String
+
+  @@index([siteId, changedAt])
+}
