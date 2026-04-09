@@ -16,6 +16,23 @@ export async function scrapeWithPlaywright(url: string): Promise<RawScrapedData>
     await page.waitForLoadState("networkidle", { timeout: 15000 });
 
     const result = await page.evaluate(() => {
+      const validColor = (value: string) => {
+        const v = value.trim().toLowerCase();
+        if (!v || v === "transparent") {
+          return false;
+        }
+        if (v.startsWith("rgba(")) {
+          const parts = v
+            .replace("rgba(", "")
+            .replace(")", "")
+            .split(",")
+            .map((p) => p.trim());
+          const alpha = Number.parseFloat(parts[3] ?? "1");
+          return Number.isFinite(alpha) && alpha > 0;
+        }
+        return true;
+      };
+
       const getComputed = (selector: string, styleProp: keyof CSSStyleDeclaration) => {
         return Array.from(document.querySelectorAll(selector))
           .map((el) => window.getComputedStyle(el)[styleProp])
@@ -30,11 +47,26 @@ export async function scrapeWithPlaywright(url: string): Promise<RawScrapedData>
       });
 
       const rootStyle = window.getComputedStyle(document.documentElement);
+      const bodyStyle = window.getComputedStyle(document.body);
       const cssVars: Record<string, string> = {};
       for (const name of Array.from(rootStyle)) {
         if (name.startsWith("--")) {
           cssVars[name] = rootStyle.getPropertyValue(name).trim();
         }
+      }
+
+      const pageBgCandidates = [bodyStyle.backgroundColor, rootStyle.backgroundColor]
+        .map((v) => String(v))
+        .filter(validColor);
+      if (pageBgCandidates.length) {
+        cssVars.__page_bg = pageBgCandidates[0];
+      }
+
+      const pageTextCandidates = [bodyStyle.color, rootStyle.color]
+        .map((v) => String(v))
+        .filter(validColor);
+      if (pageTextCandidates.length) {
+        cssVars.__page_text = pageTextCandidates[0];
       }
 
       const spacingValues = Array.from(document.querySelectorAll("div,section,article,main,header,footer,button,input,li"))

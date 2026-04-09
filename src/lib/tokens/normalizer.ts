@@ -42,8 +42,25 @@ const DEFAULT_TOKENS: DesignTokens = {
 const SYSTEM_FONT_MARKERS = ["system-ui", "sans-serif", "serif", "monospace", "ui-sans-serif", "arial"];
 
 function normalizeColor(input: string): string | null {
+  const value = input.trim().toLowerCase();
+  if (!value || value === "transparent") {
+    return null;
+  }
+
+  if (value.startsWith("rgba(")) {
+    const parts = value
+      .replace("rgba(", "")
+      .replace(")", "")
+      .split(",")
+      .map((part) => part.trim());
+    const alpha = Number.parseFloat(parts[3] ?? "1");
+    if (Number.isFinite(alpha) && alpha <= 0) {
+      return null;
+    }
+  }
+
   try {
-    return Color(input).hex().toUpperCase();
+    return Color(value).hex().toUpperCase();
   } catch {
     return null;
   }
@@ -206,6 +223,9 @@ export function normalizeTokens(
   const normalizedColors = raw.rawColors.map(normalizeColor).filter((value): value is string => Boolean(value));
   const sortedColors = chooseByFrequency(normalizedColors);
 
+  const hintedBackground = normalizeColor(raw.cssVars.__page_bg ?? "");
+  const hintedText = normalizeColor(raw.cssVars.__page_text ?? "");
+
   const darkColors = sortedColors.filter((color) => chroma(color).luminance() < 0.35);
   const lightColors = sortedColors.filter((color) => chroma(color).luminance() > 0.75);
   const brandCandidates = sortedColors.filter((color) => {
@@ -214,8 +234,9 @@ export function normalizeTokens(
     return lum > 0.12 && lum < 0.82 && sat > 0.16;
   });
 
-  const background = lightColors[0] ?? DEFAULT_TOKENS.colors.background;
+  const background = hintedBackground ?? lightColors[0] ?? DEFAULT_TOKENS.colors.background;
   const text =
+    hintedText ??
     darkColors
       .slice()
       .sort((a, b) => chroma.contrast(b, background) - chroma.contrast(a, background))[0] ??

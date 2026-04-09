@@ -76,10 +76,24 @@ export async function scrapeWithCheerio(url: string): Promise<RawScrapedData> {
   const rawSizes: string[] = [];
   const rawColors: string[] = [];
   const rawSpacing: string[] = [];
+  const cssVars: Record<string, string> = {};
 
   const themeColor = $("meta[name='theme-color']").attr("content");
   if (themeColor) {
     rawColors.push(themeColor);
+    cssVars.__page_bg = themeColor;
+  }
+
+  const bodyStyleAttr = $("body").attr("style") ?? "";
+  const bgFromBodyStyle = bodyStyleAttr.match(/background(?:-color)?\s*:\s*([^;]+)/i)?.[1]?.trim();
+  const textFromBodyStyle = bodyStyleAttr.match(/color\s*:\s*([^;]+)/i)?.[1]?.trim();
+  if (bgFromBodyStyle) {
+    cssVars.__page_bg = bgFromBodyStyle;
+    rawColors.push(bgFromBodyStyle);
+  }
+  if (textFromBodyStyle) {
+    cssVars.__page_text = textFromBodyStyle;
+    rawColors.push(textFromBodyStyle);
   }
 
   $("h1,h2,h3,p,body,a,button,input,div,section").each((_, element) => {
@@ -147,6 +161,6 @@ export async function scrapeWithCheerio(url: string): Promise<RawScrapedData> {
     rawSizes,
     rawSpacing,
     imageUrls,
-    cssVars: {},
+    cssVars,
   };
 }
