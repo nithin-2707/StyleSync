@@ -4,6 +4,8 @@ import { tokensToCss, tokensToJson, tokensToTailwind } from "@/lib/tokens/export
 import type { DesignTokens } from "@/types/tokens";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
 
 interface Params {
   params: { siteId: string };
@@ -27,11 +29,24 @@ function readNumber(record: Record<string, unknown>, key: string, fallback: numb
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
-  const format = request.nextUrl.searchParams.get("format");
+  const siteId = params?.siteId;
+  if (!siteId || typeof siteId !== "string") {
+    return NextResponse.json({ error: "Missing siteId" }, { status: 400 });
+  }
 
-  const token = await prisma.designToken.findUnique({
-    where: { siteId: params.siteId },
-  });
+  const format = request.nextUrl.searchParams.get("format");
+  if (!format || !["css", "json", "tailwind"].includes(format)) {
+    return NextResponse.json({ error: "Unsupported format" }, { status: 400 });
+  }
+
+  let token;
+  try {
+    token = await prisma.designToken.findUnique({
+      where: { siteId },
+    });
+  } catch {
+    return NextResponse.json({ error: "Unable to query tokens" }, { status: 500 });
+  }
 
   if (!token) {
     return NextResponse.json({ error: "Token set not found" }, { status: 404 });
