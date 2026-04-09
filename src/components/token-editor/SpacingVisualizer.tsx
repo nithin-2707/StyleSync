@@ -15,7 +15,7 @@ interface SpacingVisualizerProps {
 const MULTIPLIERS = [1, 2, 3, 4, 6, 8, 12, 16];
 
 export default function SpacingVisualizer({ unit, scale, lockedKeys, onLock, onChange }: SpacingVisualizerProps) {
-  const displayScale = scale ?? MULTIPLIERS.map((m) => m * unit);
+
 
   return (
     <div className="space-y-6">

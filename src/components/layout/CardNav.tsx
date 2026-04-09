@@ -3,7 +3,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ArrowUpRight } from 'lucide-react';
-import { Sparkles } from 'lucide-react';
+
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
@@ -70,7 +70,7 @@ const CardNav: React.FC<CardNavProps> = ({
         contentEl.style.position = 'static';
         contentEl.style.height = 'auto';
 
-        contentEl.offsetHeight;
+        void contentEl.offsetHeight;
 
         const topBar = 60;
         const padding = 16;

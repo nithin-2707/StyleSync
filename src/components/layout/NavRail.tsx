@@ -2,7 +2,7 @@
 
 import type { ComponentType } from "react";
 import { motion } from "framer-motion";
-import { Palette, Type, AlignJustify, Layers, Circle as RadiusIcon, Monitor, History, Download, Sparkles } from "lucide-react";
+import { Palette, Type, AlignJustify, Layers, Circle as RadiusIcon, Monitor, History, Download } from "lucide-react";
 
 type NavItem = {
   id: string;

@@ -29,7 +29,7 @@ export default function DashboardPage() {
 
   const tokens = useTokenStore((state) => state.tokens);
   const setTokens = useTokenStore((state) => state.setTokens);
-  const updateToken = useTokenStore((state) => state.updateToken);
+
   const lockToken = useTokenStore((state) => state.lockToken);
   const history = useTokenStore((state) => state.history);
   const setHistory = useTokenStore((state) => state.setHistory);
@@ -124,7 +124,7 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, [lockToken, setTokens, siteId]);
+  }, [lockToken, setHistory, setTokens, siteId]);
 
   const handleExport = useCallback(() => setActiveNavId("export"), []);
   const handleRescrape = useCallback(() => router.push("/"), [router]);

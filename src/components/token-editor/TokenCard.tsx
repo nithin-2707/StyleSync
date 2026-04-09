@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import LockButton from "@/components/ui/LockButton";
 import Badge from "@/components/ui/Badge";

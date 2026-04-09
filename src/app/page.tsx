@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Link2, Palette, Type, AlignJustify, Sparkles, Lock, Download, Zap } from "lucide-react";
+import { ArrowRight, Link2, Palette, Type, AlignJustify, Lock, Download, Zap } from "lucide-react";
 
 import CardNav from "@/components/layout/CardNav";
 

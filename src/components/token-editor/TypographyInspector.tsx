@@ -13,15 +13,7 @@ interface TypographyInspectorProps {
   onChange: (key: string, value: string) => void;
 }
 
-const WEIGHT_OPTIONS = [
-  { label: "Thin", value: "100" },
-  { label: "Light", value: "300" },
-  { label: "Regular", value: "400" },
-  { label: "Medium", value: "500" },
-  { label: "Semibold", value: "600" },
-  { label: "Bold", value: "700" },
-  { label: "Black", value: "900" },
-];
+
 
 export default function TypographyInspector({
   headingFont,
