@@ -7,6 +7,7 @@ import { scrapeWithPlaywright } from "@/lib/scraper/playwright";
 import { scrapeWithCheerio } from "@/lib/scraper/cheerio-fallback";
 import { extractPaletteFromImages } from "@/lib/color/vibrant";
 import { normalizeTokens } from "@/lib/tokens/normalizer";
+export const dynamic = "force-dynamic";
 
 async function runInlineScrape(siteId: string, url: string, sessionId: string) {
   try {
