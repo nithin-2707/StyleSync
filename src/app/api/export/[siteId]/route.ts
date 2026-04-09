@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { tokensToCss, tokensToJson, tokensToTailwind } from "@/lib/tokens/exporter";
 import type { DesignTokens } from "@/types/tokens";
 
@@ -41,6 +40,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   let token;
   try {
+    const { prisma } = await import("@/lib/db");
     token = await prisma.designToken.findUnique({
       where: { siteId },
     });
