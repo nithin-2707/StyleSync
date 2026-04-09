@@ -1,10 +1,9 @@
 import { Queue, Worker } from "bullmq";
 import type { Prisma } from "@prisma/client";
-import { scrapeWithPlaywright } from "@/lib/scraper/playwright";
-import { scrapeWithCheerio } from "@/lib/scraper/cheerio-fallback";
+import { scrapeBestEffort } from "@/lib/scraper/best-effort";
 import { extractPaletteFromImages } from "@/lib/color/vibrant";
 import { normalizeTokens } from "@/lib/tokens/normalizer";
-import { DEMO_TOKENS, isDemoMode } from "@/lib/fixtures/demo-tokens";
+import { getDemoTokens, isDemoMode } from "@/lib/fixtures/demo-tokens";
 
 async function getPrismaClient() {
   const { prisma } = await import("@/lib/db");
@@ -64,38 +63,40 @@ export function ensureScrapeWorker(): void {
 
       try {
         if (isDemoMode(url)) {
-          const demo = Object.values(DEMO_TOKENS)[0];
-          await prisma.designToken.upsert({
-            where: { siteId },
-            create: {
-              siteId,
-              colors: demo.colors as unknown as Prisma.InputJsonObject,
-              typography: demo.typography as unknown as Prisma.InputJsonObject,
-              spacing: demo.spacing as unknown as Prisma.InputJsonObject,
-              shadows: demo.shadows as unknown as Prisma.InputJsonObject,
-              radii: demo.radii as unknown as Prisma.InputJsonObject,
-            },
-            update: {
-              colors: demo.colors as unknown as Prisma.InputJsonObject,
-              typography: demo.typography as unknown as Prisma.InputJsonObject,
-              spacing: demo.spacing as unknown as Prisma.InputJsonObject,
-              shadows: demo.shadows as unknown as Prisma.InputJsonObject,
-              radii: demo.radii as unknown as Prisma.InputJsonObject,
-            },
-          });
-          await prisma.scrapedSite.update({ where: { id: siteId }, data: { extractionStatus: "done" } });
-          return;
+          const demo = getDemoTokens(url);
+          if (demo) {
+            await prisma.designToken.upsert({
+              where: { siteId },
+              create: {
+                siteId,
+                colors: demo.colors as unknown as Prisma.InputJsonObject,
+                typography: demo.typography as unknown as Prisma.InputJsonObject,
+                spacing: demo.spacing as unknown as Prisma.InputJsonObject,
+                shadows: demo.shadows as unknown as Prisma.InputJsonObject,
+                radii: demo.radii as unknown as Prisma.InputJsonObject,
+              },
+              update: {
+                colors: demo.colors as unknown as Prisma.InputJsonObject,
+                typography: demo.typography as unknown as Prisma.InputJsonObject,
+                spacing: demo.spacing as unknown as Prisma.InputJsonObject,
+                shadows: demo.shadows as unknown as Prisma.InputJsonObject,
+                radii: demo.radii as unknown as Prisma.InputJsonObject,
+              },
+            });
+            await prisma.scrapedSite.update({ where: { id: siteId }, data: { extractionStatus: "done" } });
+            return;
+          }
         }
 
-        let raw;
-        try {
-          raw = await scrapeWithPlaywright(url);
-        } catch {
-          raw = await scrapeWithCheerio(url);
-        }
+        const raw = await scrapeBestEffort(url);
 
         const locked = await prisma.lockedToken.findMany({ where: { siteId, sessionId } });
-        const palette = await extractPaletteFromImages(raw.imageUrls);
+        let palette = null;
+        try {
+          palette = await extractPaletteFromImages(raw.imageUrls);
+        } catch {
+          palette = null;
+        }
         const tokens = normalizeTokens(raw, locked, palette);
 
         await prisma.designToken.upsert({

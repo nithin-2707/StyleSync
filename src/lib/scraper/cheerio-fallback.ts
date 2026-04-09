@@ -1,5 +1,4 @@
 import * as cheerio from "cheerio";
-import { ScrapeError, isBlockedResponse } from "@/lib/scraper/detect-blocks";
 import type { RawScrapedData } from "@/types/tokens";
 
 export async function scrapeWithCheerio(url: string): Promise<RawScrapedData> {
@@ -10,9 +9,6 @@ export async function scrapeWithCheerio(url: string): Promise<RawScrapedData> {
   });
 
   const html = await response.text();
-  if (!response.ok || isBlockedResponse(response.status, html)) {
-    throw new ScrapeError("BLOCKED", "Blocked while attempting static fallback scrape");
-  }
 
   const $ = cheerio.load(html);
   const rawFonts: string[] = [];
@@ -34,6 +30,19 @@ export async function scrapeWithCheerio(url: string): Promise<RawScrapedData> {
     if (style.includes("margin") || style.includes("padding")) {
       rawSpacing.push(style);
     }
+  });
+
+  // Include inline stylesheet content to capture sites with CSS-in-HEAD patterns.
+  $("style").each((_, styleTag) => {
+    const css = $(styleTag).html() ?? "";
+    if (!css) {
+      return;
+    }
+
+    rawColors.push(...(css.match(/#(?:[0-9a-fA-F]{3,8})\b|rgba?\([^\)]+\)|hsla?\([^\)]+\)/g) ?? []));
+    rawFonts.push(...(css.match(/font-family\s*:\s*[^;]+/g) ?? []));
+    rawSizes.push(...(css.match(/font-size\s*:\s*[^;]+/g) ?? []));
+    rawSpacing.push(...(css.match(/(?:margin|padding|gap)\s*:\s*[^;]+/g) ?? []));
   });
 
   const imageUrls = $("img")

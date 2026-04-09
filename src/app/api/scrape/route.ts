@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { ensureScrapeWorker, getScrapeQueue } from "@/lib/queue/scrape-worker";
 import { getDemoTokens, isDemoMode } from "@/lib/fixtures/demo-tokens";
-import { scrapeWithPlaywright } from "@/lib/scraper/playwright";
-import { scrapeWithCheerio } from "@/lib/scraper/cheerio-fallback";
+import { scrapeBestEffort } from "@/lib/scraper/best-effort";
 import { extractPaletteFromImages } from "@/lib/color/vibrant";
 import { normalizeTokens } from "@/lib/tokens/normalizer";
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
+
+function shouldUseQueue(): boolean {
+  // Queue mode needs a persistent worker process; keep it opt-in for serverless deployments.
+  return process.env.ENABLE_REDIS_QUEUE === "true";
+}
 
 async function runInlineScrape(siteId: string, url: string, sessionId: string) {
   const { prisma } = await import("@/lib/db");
@@ -17,15 +23,15 @@ async function runInlineScrape(siteId: string, url: string, sessionId: string) {
       data: { extractionStatus: "running" },
     });
 
-    let raw;
-    try {
-      raw = await scrapeWithPlaywright(url);
-    } catch {
-      raw = await scrapeWithCheerio(url);
-    }
+    const raw = await scrapeBestEffort(url);
 
     const locked = await prisma.lockedToken.findMany({ where: { siteId, sessionId } });
-    const palette = await extractPaletteFromImages(raw.imageUrls);
+    let palette = null;
+    try {
+      palette = await extractPaletteFromImages(raw.imageUrls);
+    } catch {
+      palette = null;
+    }
     const tokens = normalizeTokens(raw, locked, palette);
 
     await prisma.designToken.upsert({
@@ -51,11 +57,15 @@ async function runInlineScrape(siteId: string, url: string, sessionId: string) {
       where: { id: siteId },
       data: { extractionStatus: "done" },
     });
+
+    return { ok: true as const };
   } catch {
     await prisma.scrapedSite.update({
       where: { id: siteId },
       data: { extractionStatus: "failed" },
     });
+
+    return { ok: false as const };
   }
 }
 
@@ -113,27 +123,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Try Redis queue first
-    try {
-      ensureScrapeWorker();
-      const queue = getScrapeQueue();
-      if (queue) {
-        const job = await queue.add("scrape", {
-          siteId: site.id,
-          url: body.url,
-          sessionId: body.sessionId,
-        });
-        return NextResponse.json({ siteId: site.id, jobId: String(job.id), status: "queued" });
+    if (shouldUseQueue()) {
+      try {
+        ensureScrapeWorker();
+        const queue = getScrapeQueue();
+        if (queue) {
+          const job = await queue.add("scrape", {
+            siteId: site.id,
+            url: body.url,
+            sessionId: body.sessionId,
+          });
+          return NextResponse.json({ siteId: site.id, jobId: String(job.id), status: "queued" });
+        }
+      } catch {
+        // If queue mode is enabled but unavailable, continue with inline execution.
       }
-    } catch {
-      // Redis not available, fall through to inline scraping
     }
 
-    // Inline scraping fallback (no Redis needed)
-    // Run async without blocking — client will poll /api/scrape/status/[siteId]
-    void runInlineScrape(site.id, body.url, body.sessionId);
-
-    return NextResponse.json({ siteId: site.id, jobId: "inline", status: "pending" });
+    // Execute inline and await completion to avoid serverless background-task drops.
+    const result = await runInlineScrape(site.id, body.url, body.sessionId);
+    return NextResponse.json({
+      siteId: site.id,
+      jobId: "inline",
+      status: result.ok ? "done" : "failed",
+    });
   } catch (error) {
     return NextResponse.json(
       {
