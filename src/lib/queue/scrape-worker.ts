@@ -1,11 +1,15 @@
 import { Queue, Worker } from "bullmq";
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
 import { scrapeWithPlaywright } from "@/lib/scraper/playwright";
 import { scrapeWithCheerio } from "@/lib/scraper/cheerio-fallback";
 import { extractPaletteFromImages } from "@/lib/color/vibrant";
 import { normalizeTokens } from "@/lib/tokens/normalizer";
 import { DEMO_TOKENS, isDemoMode } from "@/lib/fixtures/demo-tokens";
+
+async function getPrismaClient() {
+  const { prisma } = await import("@/lib/db");
+  return prisma;
+}
 
 function hasValidRedisUrl(): boolean {
   const url = process.env.REDIS_URL;
@@ -50,6 +54,7 @@ export function ensureScrapeWorker(): void {
   new Worker(
     "scrape-queue",
     async (job) => {
+      const prisma = await getPrismaClient();
       const { siteId, url, sessionId } = job.data as { siteId: string; url: string; sessionId: string };
 
       await prisma.scrapedSite.update({

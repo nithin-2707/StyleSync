@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
 import { ensureScrapeWorker, getScrapeQueue } from "@/lib/queue/scrape-worker";
 import { getDemoTokens, isDemoMode } from "@/lib/fixtures/demo-tokens";
 import { scrapeWithPlaywright } from "@/lib/scraper/playwright";
@@ -10,6 +9,8 @@ import { normalizeTokens } from "@/lib/tokens/normalizer";
 export const dynamic = "force-dynamic";
 
 async function runInlineScrape(siteId: string, url: string, sessionId: string) {
+  const { prisma } = await import("@/lib/db");
+
   try {
     await prisma.scrapedSite.update({
       where: { id: siteId },
@@ -60,6 +61,7 @@ async function runInlineScrape(siteId: string, url: string, sessionId: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { prisma } = await import("@/lib/db");
     const body = (await request.json()) as { url?: string; sessionId?: string };
 
     if (!body.url || !body.sessionId) {

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +7,8 @@ interface Params {
 }
 
 export async function GET(_: Request, { params }: Params) {
+  const { prisma } = await import("@/lib/db");
+
   const history: Array<{
     tokenKey: string;
     valueBefore: string;

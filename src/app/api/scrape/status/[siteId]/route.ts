@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,6 +9,8 @@ interface Params {
 }
 
 export async function GET(_: Request, { params }: Params) {
+  const { prisma } = await import("@/lib/db");
+
   const siteId = params?.siteId;
   if (!siteId || typeof siteId !== "string") {
     return NextResponse.json({ error: "Missing siteId" }, { status: 400 });

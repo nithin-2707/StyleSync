@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +28,8 @@ function setValueAtPath(target: Record<string, unknown>, tokenKey: string, value
 }
 
 export async function GET(_: NextRequest, { params }: Params) {
+  const { prisma } = await import("@/lib/db");
+
   const token = await prisma.designToken.findUnique({
     where: { siteId: params.siteId },
   });
@@ -63,6 +64,8 @@ export async function GET(_: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const { prisma } = await import("@/lib/db");
+
   const body = (await request.json()) as {
     tokenKey?: string;
     value?: string;

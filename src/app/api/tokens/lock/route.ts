@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const { prisma } = await import("@/lib/db");
+
   const body = (await request.json()) as {
     siteId?: string;
     tokenKey?: string;
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const { prisma } = await import("@/lib/db");
+
   const body = (await request.json()) as {
     siteId?: string;
     tokenKey?: string;
