@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { tokensToCss, tokensToJson, tokensToTailwind } from "@/lib/tokens/exporter";
 import type { DesignTokens } from "@/types/tokens";
 
+export const dynamic = "force-dynamic";
+
 interface Params {
   params: { siteId: string };
 }
