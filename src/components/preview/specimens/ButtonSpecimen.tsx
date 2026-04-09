@@ -1,9 +1,23 @@
 "use client";
 
+import chroma from "chroma-js";
+import { useTokenStore } from "@/store/tokens";
+
 export default function ButtonSpecimen() {
+  const tokens = useTokenStore((state) => state.tokens);
+
+  const onPrimary =
+    tokens && chroma.contrast(tokens.colors.primary, "#FFFFFF") >= 4.5
+      ? "#FFFFFF"
+      : "#111111";
+  const onAccent =
+    tokens && chroma.contrast(tokens.colors.accent, "#FFFFFF") >= 4.5
+      ? "#FFFFFF"
+      : "#111111";
+
   const baseStyle = {
     fontFamily: "var(--token-font-body)",
-    borderRadius: "var(--token-radius-base)",
+    borderRadius: "var(--token-radius-md)",
     fontWeight: 600,
   };
 
@@ -22,7 +36,7 @@ export default function ButtonSpecimen() {
           style={{
              ...baseStyle,
              background: "var(--token-color-primary)",
-             color: "var(--token-color-background)",
+             color: onPrimary,
              boxShadow: "var(--token-shadow-sm)"
           }}
         >
@@ -62,8 +76,8 @@ export default function ButtonSpecimen() {
           className="px-6 py-2.5 transition-all hover:brightness-110 active:scale-95"
           style={{
              ...baseStyle,
-             background: "var(--token-color-border)",
-             color: "var(--token-color-background)",
+             background: "var(--token-color-accent)",
+             color: onAccent,
           }}
         >
           Accent
@@ -76,8 +90,8 @@ export default function ButtonSpecimen() {
           className="cursor-not-allowed px-6 py-2.5 opacity-50 transition-all"
           style={{
              ...baseStyle,
-             background: "var(--token-color-border)",
-             color: "var(--token-color-background)",
+             background: "var(--token-color-neutral)",
+             color: "var(--token-color-text)",
           }}
         >
           Disabled
@@ -88,21 +102,21 @@ export default function ButtonSpecimen() {
         <button
           type="button"
           className="px-4 py-1.5 text-xs transition-all hover:brightness-110"
-          style={{ ...baseStyle, background: "var(--token-color-primary)", color: "var(--token-color-background)" }}
+          style={{ ...baseStyle, background: "var(--token-color-primary)", color: onPrimary }}
         >
           SM
         </button>
         <button
           type="button"
           className="px-6 py-2.5 transition-all hover:brightness-110"
-          style={{ ...baseStyle, background: "var(--token-color-primary)", color: "var(--token-color-background)" }}
+          style={{ ...baseStyle, background: "var(--token-color-primary)", color: onPrimary }}
         >
           MD
         </button>
         <button
           type="button"
           className="px-8 py-3.5 text-lg transition-all hover:brightness-110"
-          style={{ ...baseStyle, background: "var(--token-color-primary)", color: "var(--token-color-background)" }}
+          style={{ ...baseStyle, background: "var(--token-color-primary)", color: onPrimary }}
         >
           LG
         </button>

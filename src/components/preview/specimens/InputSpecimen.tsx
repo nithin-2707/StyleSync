@@ -12,7 +12,7 @@ export default function InputSpecimen() {
     background: "var(--token-color-background)",
     color: "var(--token-color-text)",
     border: "1px solid var(--token-color-border)",
-    borderRadius: "calc(var(--token-radius-base) * 0.5)",
+    borderRadius: "var(--token-radius-sm)",
     boxShadow: "var(--token-shadow-sm)",
   };
 

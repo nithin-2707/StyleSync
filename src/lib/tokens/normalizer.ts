@@ -49,6 +49,44 @@ function normalizeColor(input: string): string | null {
   }
 }
 
+function getSaturation(color: string): number {
+  const s = chroma(color).get("hsl.s");
+  return Number.isFinite(s) ? s : 0;
+}
+
+function getBorderColor(background: string, text: string, candidates: string[]): string {
+  const subtle = candidates.find((color) => {
+    const sat = getSaturation(color);
+    const contrast = chroma.contrast(color, background);
+    return sat < 0.3 && contrast >= 1.15 && contrast <= 2.8;
+  });
+
+  if (subtle) {
+    return subtle;
+  }
+
+  const bgLum = chroma(background).luminance();
+  const ratio = bgLum > 0.5 ? 0.18 : 0.26;
+  return chroma.mix(background, text, ratio, "lab").hex().toUpperCase();
+}
+
+function getSurfaceColor(background: string, candidates: string[]): string {
+  const surfaceCandidate = candidates.find((color) => {
+    const contrast = chroma.contrast(color, background);
+    return contrast >= 1.03 && contrast <= 1.35;
+  });
+
+  if (surfaceCandidate) {
+    return surfaceCandidate;
+  }
+
+  const bgLum = chroma(background).luminance();
+  if (bgLum > 0.6) {
+    return "#FFFFFF";
+  }
+  return chroma.mix(background, "#FFFFFF", 0.08, "lab").hex().toUpperCase();
+}
+
 function chooseByFrequency(items: string[]): string[] {
   const counts = new Map<string, number>();
   for (const item of items) {
@@ -169,19 +207,49 @@ export function normalizeTokens(
   const sortedColors = chooseByFrequency(normalizedColors);
 
   const darkColors = sortedColors.filter((color) => chroma(color).luminance() < 0.35);
-  const lightColors = sortedColors.filter((color) => chroma(color).luminance() > 0.7);
-  const saturated = [...sortedColors].sort((a, b) => chroma(b).saturate().get("hsl.s") - chroma(a).saturate().get("hsl.s"));
+  const lightColors = sortedColors.filter((color) => chroma(color).luminance() > 0.75);
+  const brandCandidates = sortedColors.filter((color) => {
+    const lum = chroma(color).luminance();
+    const sat = getSaturation(color);
+    return lum > 0.12 && lum < 0.82 && sat > 0.16;
+  });
+
+  const background = lightColors[0] ?? DEFAULT_TOKENS.colors.background;
+  const text =
+    darkColors
+      .slice()
+      .sort((a, b) => chroma.contrast(b, background) - chroma.contrast(a, background))[0] ??
+    DEFAULT_TOKENS.colors.text;
+
+  const primary = imagePalette?.primary ?? brandCandidates[0] ?? darkColors[0] ?? DEFAULT_TOKENS.colors.primary;
+  const secondary =
+    imagePalette?.secondary ??
+    brandCandidates.find((color) => color !== primary) ??
+    chroma.mix(primary, background, 0.45, "lab").hex().toUpperCase();
+  const accent =
+    imagePalette?.accent ??
+    brandCandidates.find((color) => color !== primary && color !== secondary) ??
+    chroma.mix(primary, "#FFFFFF", 0.2, "lab").hex().toUpperCase();
+
+  const neutral =
+    imagePalette?.neutral ??
+    sortedColors.find((color) => getSaturation(color) < 0.18 && chroma(color).luminance() > 0.45) ??
+    lightColors[1] ??
+    DEFAULT_TOKENS.colors.neutral;
+
+  const border = getBorderColor(background, text, sortedColors);
+  const surface = getSurfaceColor(background, sortedColors);
 
   const colors = {
     ...DEFAULT_TOKENS.colors,
-    text: darkColors[0] ?? DEFAULT_TOKENS.colors.text,
-    background: lightColors[0] ?? DEFAULT_TOKENS.colors.background,
-    primary: imagePalette?.primary ?? saturated[0] ?? DEFAULT_TOKENS.colors.primary,
-    secondary: imagePalette?.secondary ?? saturated[1] ?? DEFAULT_TOKENS.colors.secondary,
-    accent: imagePalette?.accent ?? saturated[2] ?? DEFAULT_TOKENS.colors.accent,
-    neutral: imagePalette?.neutral ?? lightColors[1] ?? DEFAULT_TOKENS.colors.neutral,
-    surface: lightColors[2] ?? "#FFFFFF",
-    border: saturated[3] ?? DEFAULT_TOKENS.colors.border,
+    text,
+    background,
+    primary,
+    secondary,
+    accent,
+    neutral,
+    surface,
+    border,
   };
 
   const scale = normalizeSizes(raw.rawSizes);

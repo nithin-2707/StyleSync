@@ -1,6 +1,16 @@
 "use client";
 
+import chroma from "chroma-js";
+import { useTokenStore } from "@/store/tokens";
+
 export default function CardSpecimen() {
+  const tokens = useTokenStore((state) => state.tokens);
+
+  const onPrimary =
+    tokens && chroma.contrast(tokens.colors.primary, "#FFFFFF") >= 4.5
+      ? "#FFFFFF"
+      : "#111111";
+
   return (
     <section className="space-y-6 rounded-[28px] p-6 transition-all" style={{ background: "var(--token-color-surface)", border: "1px solid var(--token-color-border)", color: "var(--token-color-text)" }}>
       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--token-color-border)" }}>
@@ -28,7 +38,7 @@ export default function CardSpecimen() {
             <h4 className="mb-2 text-lg font-bold" style={{ fontFamily: "var(--token-font-heading)" }}>
               Elevated Card
             </h4>
-            <p className="mb-6 flex-1 opacity-70" style={{ fontFamily: "var(--token-font-body)", fontSize: "var(--token-font-size-sm)" }}>
+            <p className="mb-6 flex-1 opacity-70" style={{ fontFamily: "var(--token-font-body)", fontSize: "calc(var(--token-font-size-base) * 0.95)" }}>
               Uses the medium shadow token and large border radius.
             </p>
             <button
@@ -36,8 +46,8 @@ export default function CardSpecimen() {
               className="w-full rounded-md py-2.5 font-semibold transition-all hover:brightness-110"
               style={{
                  background: "var(--token-color-primary)",
-                 color: "var(--token-color-background)",
-                 borderRadius: "var(--token-radius-base)",
+                  color: onPrimary,
+                  borderRadius: "var(--token-radius-md)",
               }}
             >
               Action
@@ -57,7 +67,7 @@ export default function CardSpecimen() {
           <div className="mb-4 flex items-center justify-between">
             <span
                className="rounded-full px-3 py-1 text-xs font-semibold"
-               style={{ background: "var(--token-color-primary)", color: "var(--token-color-background)" }}
+              style={{ background: "var(--token-color-primary)", color: onPrimary }}
             >
               Label
             </span>
@@ -66,7 +76,7 @@ export default function CardSpecimen() {
           <h4 className="mb-2 text-lg font-bold" style={{ fontFamily: "var(--token-font-heading)" }}>
             Outlined Variant
           </h4>
-          <p className="mb-6 flex-1 opacity-70" style={{ fontFamily: "var(--token-font-body)", fontSize: "var(--token-font-size-sm)" }}>
+          <p className="mb-6 flex-1 opacity-70" style={{ fontFamily: "var(--token-font-body)", fontSize: "calc(var(--token-font-size-base) * 0.95)" }}>
             Minimal design utilizing border tokens instead of shadows.
           </p>
           <div className="flex gap-3 mt-auto">
@@ -77,7 +87,7 @@ export default function CardSpecimen() {
                  background: "transparent",
                  color: "var(--token-color-text)",
                  border: "1px solid var(--token-color-border)",
-                 borderRadius: "var(--token-radius-base)",
+                  borderRadius: "var(--token-radius-md)",
               }}
             >
               Cancel
@@ -87,8 +97,8 @@ export default function CardSpecimen() {
               className="flex-1 py-2 font-semibold transition-all hover:brightness-110"
               style={{
                  background: "var(--token-color-primary)",
-                 color: "var(--token-color-background)",
-                 borderRadius: "var(--token-radius-base)",
+                  color: onPrimary,
+                  borderRadius: "var(--token-radius-md)",
               }}
             >
               Submit
