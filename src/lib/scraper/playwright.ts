@@ -58,6 +58,28 @@ export async function scrapeWithPlaywright(url: string): Promise<RawScrapedData>
       const pageBgCandidates = [bodyStyle.backgroundColor, rootStyle.backgroundColor]
         .map((v) => String(v))
         .filter(validColor);
+
+      if (!pageBgCandidates.length) {
+        const areaCandidates = Array.from(document.querySelectorAll("body,main,section,div,header,footer"))
+          .slice(0, 500)
+          .map((el) => {
+            const style = window.getComputedStyle(el);
+            const bg = String(style.backgroundColor);
+            if (!validColor(bg)) {
+              return null;
+            }
+            const rect = el.getBoundingClientRect();
+            const area = Math.max(0, rect.width) * Math.max(0, rect.height);
+            return { bg, area };
+          })
+          .filter((item): item is { bg: string; area: number } => Boolean(item))
+          .sort((a, b) => b.area - a.area);
+
+        if (areaCandidates.length) {
+          pageBgCandidates.push(areaCandidates[0].bg);
+        }
+      }
+
       if (pageBgCandidates.length) {
         cssVars.__page_bg = pageBgCandidates[0];
       }

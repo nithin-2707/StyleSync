@@ -87,6 +87,51 @@ function getBorderColor(background: string, text: string, candidates: string[]):
   return chroma.mix(background, text, ratio, "lab").hex().toUpperCase();
 }
 
+function countColors(items: string[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    counts.set(item, (counts.get(item) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function pickBackgroundFromSignal(sortedColors: string[], counts: Map<string, number>): string | null {
+  const neutralCandidates = sortedColors.filter((color) => getSaturation(color) <= 0.25);
+  if (!neutralCandidates.length) {
+    return null;
+  }
+
+  const darkScore = neutralCandidates
+    .filter((color) => chroma(color).luminance() < 0.2)
+    .reduce((sum, color) => sum + (counts.get(color) ?? 0), 0);
+  const lightScore = neutralCandidates
+    .filter((color) => chroma(color).luminance() > 0.78)
+    .reduce((sum, color) => sum + (counts.get(color) ?? 0), 0);
+
+  if (darkScore > lightScore * 1.15) {
+    return neutralCandidates.find((color) => chroma(color).luminance() < 0.2) ?? null;
+  }
+
+  if (lightScore > darkScore * 1.15) {
+    return neutralCandidates.find((color) => chroma(color).luminance() > 0.78) ?? null;
+  }
+
+  return neutralCandidates.find((color) => chroma(color).luminance() > 0.78) ?? neutralCandidates[0] ?? null;
+}
+
+function pickTextForBackground(background: string, sortedColors: string[]): string {
+  const isDarkBg = chroma(background).luminance() < 0.45;
+  const candidatePool = sortedColors.filter((color) =>
+    isDarkBg ? chroma(color).luminance() > 0.7 : chroma(color).luminance() < 0.35,
+  );
+
+  const contrastSorted = (candidatePool.length ? candidatePool : sortedColors)
+    .slice()
+    .sort((a, b) => chroma.contrast(b, background) - chroma.contrast(a, background));
+
+  return contrastSorted[0] ?? (isDarkBg ? "#FFFFFF" : "#111111");
+}
+
 function getSurfaceColor(background: string, candidates: string[]): string {
   const surfaceCandidate = candidates.find((color) => {
     const contrast = chroma.contrast(color, background);
@@ -102,6 +147,39 @@ function getSurfaceColor(background: string, candidates: string[]): string {
     return "#FFFFFF";
   }
   return chroma.mix(background, "#FFFFFF", 0.08, "lab").hex().toUpperCase();
+}
+
+function inferBackgroundFromHints(
+  hintedBackground: string | null,
+  hintedText: string | null,
+  sortedColors: string[],
+  darkColors: string[],
+  lightColors: string[],
+): string {
+  if (hintedBackground) {
+    return hintedBackground;
+  }
+
+  if (hintedText) {
+    const textLum = chroma(hintedText).luminance();
+    const candidates = sortedColors.slice(0, 10);
+
+    const opposite = candidates.find((color) => {
+      const lum = chroma(color).luminance();
+      return Math.abs(lum - textLum) >= 0.5;
+    });
+
+    if (opposite) {
+      return opposite;
+    }
+
+    if (textLum > 0.6) {
+      return darkColors[0] ?? DEFAULT_TOKENS.colors.text;
+    }
+    return lightColors[0] ?? DEFAULT_TOKENS.colors.background;
+  }
+
+  return lightColors[0] ?? darkColors[0] ?? DEFAULT_TOKENS.colors.background;
 }
 
 function chooseByFrequency(items: string[]): string[] {
@@ -221,6 +299,7 @@ export function normalizeTokens(
   imagePalette: ImagePalette | null,
 ): DesignTokens {
   const normalizedColors = raw.rawColors.map(normalizeColor).filter((value): value is string => Boolean(value));
+  const colorCounts = countColors(normalizedColors);
   const sortedColors = chooseByFrequency(normalizedColors);
 
   const hintedBackground = normalizeColor(raw.cssVars.__page_bg ?? "");
@@ -234,13 +313,12 @@ export function normalizeTokens(
     return lum > 0.12 && lum < 0.82 && sat > 0.16;
   });
 
-  const background = hintedBackground ?? lightColors[0] ?? DEFAULT_TOKENS.colors.background;
-  const text =
-    hintedText ??
-    darkColors
-      .slice()
-      .sort((a, b) => chroma.contrast(b, background) - chroma.contrast(a, background))[0] ??
-    DEFAULT_TOKENS.colors.text;
+  const inferredBackground = pickBackgroundFromSignal(sortedColors, colorCounts);
+  const background = hintedBackground ?? inferredBackground ?? lightColors[0] ?? DEFAULT_TOKENS.colors.background;
+
+  const hintedTextUsable =
+    hintedText && chroma.contrast(hintedText, background) >= 3 ? hintedText : null;
+  const text = hintedTextUsable ?? pickTextForBackground(background, sortedColors) ?? DEFAULT_TOKENS.colors.text;
 
   const primary = imagePalette?.primary ?? brandCandidates[0] ?? darkColors[0] ?? DEFAULT_TOKENS.colors.primary;
   const secondary =

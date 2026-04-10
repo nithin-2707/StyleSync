@@ -81,7 +81,7 @@ export async function scrapeWithCheerio(url: string): Promise<RawScrapedData> {
   const themeColor = $("meta[name='theme-color']").attr("content");
   if (themeColor) {
     rawColors.push(themeColor);
-    cssVars.__page_bg = themeColor;
+    cssVars.__theme_color = themeColor;
   }
 
   const bodyStyleAttr = $("body").attr("style") ?? "";
