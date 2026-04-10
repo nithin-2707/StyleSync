@@ -165,6 +165,26 @@ export async function scrapeWithPlaywright(url: string): Promise<RawScrapedData>
         cssVars.__brand_text = brandText;
       }
 
+      const buttons = Array.from(document.querySelectorAll("button, a[class*='btn'], a[class*='button']"));
+      const solidButton = buttons.find((el) => {
+        const bg = window.getComputedStyle(el).backgroundColor;
+        if (!validColor(bg)) return false;
+        const lum = luminance(String(bg));
+        const sat = colorSaturation(String(bg));
+        return lum > 0.05 && lum < 0.95 && sat > 0.1;
+      });
+      if (solidButton) {
+        cssVars.__button_bg = window.getComputedStyle(solidButton).backgroundColor;
+      }
+
+      const solidHeading = Array.from(document.querySelectorAll("h1, h2, h3")).find((el) => {
+        const color = window.getComputedStyle(el).color;
+        return validColor(color);
+      });
+      if (solidHeading) {
+        cssVars.__heading_color = window.getComputedStyle(solidHeading).color;
+      }
+
       const spacingValues = Array.from(document.querySelectorAll("div,section,article,main,header,footer,button,input,li"))
         .slice(0, 300)
         .flatMap((el) => {

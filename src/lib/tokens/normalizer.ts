@@ -328,6 +328,8 @@ export function normalizeTokens(
   const hintedBackground = normalizeColor(raw.cssVars.__page_bg ?? "");
   const hintedText = normalizeColor(raw.cssVars.__page_text ?? "");
   const hintedBrandText = normalizeColor(raw.cssVars.__brand_text ?? "");
+  const hintedHeadingColor = normalizeColor(raw.cssVars.__heading_color ?? "");
+  const hintedButtonBg = normalizeColor(raw.cssVars.__button_bg ?? "");
 
   const darkColors = sortedColors.filter((color) => chroma(color).luminance() < 0.35);
   const lightColors = sortedColors.filter((color) => chroma(color).luminance() > 0.75);
@@ -342,16 +344,20 @@ export function normalizeTokens(
 
   const hintedBrandTextUsable =
     hintedBrandText && chroma.contrast(hintedBrandText, background) >= 2.5 ? hintedBrandText : null;
+  const hintedHeadingUsable = 
+    hintedHeadingColor && chroma.contrast(hintedHeadingColor, background) >= 2.5 ? hintedHeadingColor : null;
   const hintedTextUsable =
     hintedText && chroma.contrast(hintedText, background) >= 3 ? hintedText : null;
+  
   const text =
     semanticText ??
+    hintedHeadingUsable ??
     hintedBrandTextUsable ??
     hintedTextUsable ??
     pickTextForBackground(background, sortedColors) ??
     DEFAULT_TOKENS.colors.text;
 
-  const primary = semanticPrimary ?? imagePalette?.primary ?? brandCandidates[0] ?? darkColors[0] ?? DEFAULT_TOKENS.colors.primary;
+  const primary = semanticPrimary ?? hintedButtonBg ?? imagePalette?.primary ?? brandCandidates[0] ?? darkColors[0] ?? DEFAULT_TOKENS.colors.primary;
   const secondary =
     semanticSecondary ??
     imagePalette?.secondary ??
