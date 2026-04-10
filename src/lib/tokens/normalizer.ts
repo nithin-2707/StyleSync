@@ -42,10 +42,13 @@ const DEFAULT_TOKENS: DesignTokens = {
 const SYSTEM_FONT_MARKERS = ["system-ui", "sans-serif", "serif", "monospace", "ui-sans-serif", "arial"];
 
 function normalizeColor(input: string): string | null {
-  const value = input.trim().toLowerCase();
+  let value = input.trim().toLowerCase();
   if (!value || value === "transparent") {
     return null;
   }
+
+  // Strip Tailwind's opacity variables: "rgb(48 110 120 / var(--tw-bg-opacity))" -> "rgb(48 110 120)"
+  value = value.replace(/\s*\/\s*(var\([^)]+\)|[\d.]+)/g, "");
 
   if (value.startsWith("rgba(")) {
     const parts = value
