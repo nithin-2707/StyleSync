@@ -66,6 +66,21 @@ function normalizeColor(input: string): string | null {
   }
 }
 
+function pickRoleFromCssVars(cssVars: Record<string, string>, rolePatterns: RegExp[]): string | null {
+  for (const [key, value] of Object.entries(cssVars)) {
+    if (!rolePatterns.some((pattern) => pattern.test(key.toLowerCase()))) {
+      continue;
+    }
+
+    const color = normalizeColor(value);
+    if (color) {
+      return color;
+    }
+  }
+
+  return null;
+}
+
 function getSaturation(color: string): number {
   const s = chroma(color).get("hsl.s");
   return Number.isFinite(s) ? s : 0;
@@ -302,8 +317,17 @@ export function normalizeTokens(
   const colorCounts = countColors(normalizedColors);
   const sortedColors = chooseByFrequency(normalizedColors);
 
+  const semanticBackground = pickRoleFromCssVars(raw.cssVars, [/background/, /surface/, /canvas/, /page.?bg/, /body/, /base/]);
+  const semanticText = pickRoleFromCssVars(raw.cssVars, [/text/, /foreground/, /fg/, /content/, /copy/, /heading/, /title/]);
+  const semanticPrimary = pickRoleFromCssVars(raw.cssVars, [/primary/, /brand/, /cta/, /main/]);
+  const semanticSecondary = pickRoleFromCssVars(raw.cssVars, [/secondary/, /alt/, /tertiary/, /muted/]);
+  const semanticAccent = pickRoleFromCssVars(raw.cssVars, [/accent/, /highlight/, /attention/]);
+  const semanticBorder = pickRoleFromCssVars(raw.cssVars, [/border/, /stroke/, /divider/, /line/]);
+  const semanticNeutral = pickRoleFromCssVars(raw.cssVars, [/neutral/, /muted/, /gray/, /grey/, /slate/, /stone/]);
+
   const hintedBackground = normalizeColor(raw.cssVars.__page_bg ?? "");
   const hintedText = normalizeColor(raw.cssVars.__page_text ?? "");
+  const hintedBrandText = normalizeColor(raw.cssVars.__brand_text ?? "");
 
   const darkColors = sortedColors.filter((color) => chroma(color).luminance() < 0.35);
   const lightColors = sortedColors.filter((color) => chroma(color).luminance() > 0.75);
@@ -314,29 +338,39 @@ export function normalizeTokens(
   });
 
   const inferredBackground = pickBackgroundFromSignal(sortedColors, colorCounts);
-  const background = hintedBackground ?? inferredBackground ?? lightColors[0] ?? DEFAULT_TOKENS.colors.background;
+  const background = semanticBackground ?? hintedBackground ?? inferredBackground ?? lightColors[0] ?? DEFAULT_TOKENS.colors.background;
 
+  const hintedBrandTextUsable =
+    hintedBrandText && chroma.contrast(hintedBrandText, background) >= 2.5 ? hintedBrandText : null;
   const hintedTextUsable =
     hintedText && chroma.contrast(hintedText, background) >= 3 ? hintedText : null;
-  const text = hintedTextUsable ?? pickTextForBackground(background, sortedColors) ?? DEFAULT_TOKENS.colors.text;
+  const text =
+    semanticText ??
+    hintedBrandTextUsable ??
+    hintedTextUsable ??
+    pickTextForBackground(background, sortedColors) ??
+    DEFAULT_TOKENS.colors.text;
 
-  const primary = imagePalette?.primary ?? brandCandidates[0] ?? darkColors[0] ?? DEFAULT_TOKENS.colors.primary;
+  const primary = semanticPrimary ?? imagePalette?.primary ?? brandCandidates[0] ?? darkColors[0] ?? DEFAULT_TOKENS.colors.primary;
   const secondary =
+    semanticSecondary ??
     imagePalette?.secondary ??
     brandCandidates.find((color) => color !== primary) ??
     chroma.mix(primary, background, 0.45, "lab").hex().toUpperCase();
   const accent =
+    semanticAccent ??
     imagePalette?.accent ??
     brandCandidates.find((color) => color !== primary && color !== secondary) ??
     chroma.mix(primary, "#FFFFFF", 0.2, "lab").hex().toUpperCase();
 
   const neutral =
+    semanticNeutral ??
     imagePalette?.neutral ??
     sortedColors.find((color) => getSaturation(color) < 0.18 && chroma(color).luminance() > 0.45) ??
     lightColors[1] ??
     DEFAULT_TOKENS.colors.neutral;
 
-  const border = getBorderColor(background, text, sortedColors);
+  const border = semanticBorder ?? getBorderColor(background, text, sortedColors);
   const surface = getSurfaceColor(background, sortedColors);
 
   const colors = {

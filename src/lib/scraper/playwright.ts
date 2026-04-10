@@ -16,6 +16,41 @@ export async function scrapeWithPlaywright(url: string): Promise<RawScrapedData>
     await page.waitForLoadState("networkidle", { timeout: 15000 });
 
     const result = await page.evaluate(() => {
+      const parseRgb = (value: string): [number, number, number, number] | null => {
+        const match = value.match(/rgba?\(([^\)]+)\)/i);
+        if (!match) {
+          return null;
+        }
+        const parts = match[1].split(",").map((p) => Number.parseFloat(p.trim()));
+        if (parts.length < 3 || parts.some((v, i) => i < 3 && !Number.isFinite(v))) {
+          return null;
+        }
+        return [parts[0], parts[1], parts[2], Number.isFinite(parts[3]) ? parts[3] : 1];
+      };
+
+      const colorSaturation = (value: string) => {
+        const rgb = parseRgb(value);
+        if (!rgb) {
+          return 0;
+        }
+        const [r, g, b] = rgb;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        if (max === 0) {
+          return 0;
+        }
+        return (max - min) / max;
+      };
+
+      const luminance = (value: string) => {
+        const rgb = parseRgb(value);
+        if (!rgb) {
+          return 0.5;
+        }
+        const [r, g, b] = rgb;
+        return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      };
+
       const validColor = (value: string) => {
         const v = value.trim().toLowerCase();
         if (!v || v === "transparent") {
@@ -31,6 +66,32 @@ export async function scrapeWithPlaywright(url: string): Promise<RawScrapedData>
           return Number.isFinite(alpha) && alpha > 0;
         }
         return true;
+      };
+
+      const pickBrandTextColor = (colors: string[]) => {
+        const counts = new Map<string, number>();
+        for (const color of colors) {
+          if (!validColor(color)) {
+            continue;
+          }
+          counts.set(color, (counts.get(color) ?? 0) + 1);
+        }
+
+        const ranked = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+        const chromatic = ranked.find(([color]) => {
+          const lum = luminance(color);
+          const sat = colorSaturation(color);
+          return lum > 0.08 && lum < 0.92 && sat > 0.16;
+        });
+        if (chromatic) {
+          return chromatic[0];
+        }
+
+        const readable = ranked.find(([color]) => {
+          const lum = luminance(color);
+          return lum > 0.08 && lum < 0.92;
+        });
+        return readable?.[0] ?? null;
       };
 
       const getComputed = (selector: string, styleProp: keyof CSSStyleDeclaration) => {
@@ -89,6 +150,19 @@ export async function scrapeWithPlaywright(url: string): Promise<RawScrapedData>
         .filter(validColor);
       if (pageTextCandidates.length) {
         cssVars.__page_text = pageTextCandidates[0];
+      }
+
+      const textSignalColors = Array.from(
+        document.querySelectorAll("h1,h2,h3,h4,h5,h6,p,a,button,label,span,li,strong"),
+      )
+        .slice(0, 500)
+        .map((el) => window.getComputedStyle(el).color)
+        .map((v) => String(v))
+        .filter(validColor);
+
+      const brandText = pickBrandTextColor(textSignalColors);
+      if (brandText) {
+        cssVars.__brand_text = brandText;
       }
 
       const spacingValues = Array.from(document.querySelectorAll("div,section,article,main,header,footer,button,input,li"))
