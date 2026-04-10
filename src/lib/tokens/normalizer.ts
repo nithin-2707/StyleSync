@@ -139,15 +139,18 @@ function pickBackgroundFromSignal(sortedColors: string[], counts: Map<string, nu
 
 function pickTextForBackground(background: string, sortedColors: string[]): string {
   const isDarkBg = chroma(background).luminance() < 0.45;
-  const candidatePool = sortedColors.filter((color) =>
-    isDarkBg ? chroma(color).luminance() > 0.7 : chroma(color).luminance() < 0.35,
-  );
+  
+  // Find colors with accessible contrast, but keep original frequency sort order
+  const candidatePool = sortedColors.filter((color) => {
+    const contrast = chroma.contrast(color, background);
+    return contrast > 4.4; // standard text accessibility limit
+  });
 
-  const contrastSorted = (candidatePool.length ? candidatePool : sortedColors)
-    .slice()
-    .sort((a, b) => chroma.contrast(b, background) - chroma.contrast(a, background));
+  if (candidatePool.length) {
+    return candidatePool[0];
+  }
 
-  return contrastSorted[0] ?? (isDarkBg ? "#FFFFFF" : "#111111");
+  return isDarkBg ? "#FFFFFF" : "#111111";
 }
 
 function getSurfaceColor(background: string, candidates: string[]): string {

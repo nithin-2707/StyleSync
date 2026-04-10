@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import type { RawScrapedData } from "@/types/tokens";
 
-const CSS_COLOR_RE = /#(?:[0-9a-fA-F]{3,8})\b|rgba?\([^\)]+\)|hsla?\([^\)]+\)/g;
+const CSS_COLOR_RE = /#(?:[0-9a-fA-F]{3,8})\b|rgba?\((?:[^)(]+|\([^)(]+\))+\)|hsla?\((?:[^)(]+|\([^)(]+\))+\)/g;
 const CSS_FONT_FAMILY_RE = /font-family\s*:\s*[^;]+/g;
 const CSS_FONT_SIZE_RE = /font-size\s*:\s*[^;]+/g;
 const CSS_SPACING_RE = /(?:margin|padding|gap)\s*:\s*[^;]+/g;
